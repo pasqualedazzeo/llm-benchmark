@@ -1,102 +1,303 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface BenchmarkResult {
+  model: string;
+  response?: string;
+  error?: string;
+}
+
+export default function BenchmarkPage() {
+  const [promptsList, setPromptsList] = useState<string[]>([]);
+  const [selectedPromptFile, setSelectedPromptFile] = useState<string>("");
+  const [promptContent, setPromptContent] = useState<string>("");
+  const [llm1, setLlm1] = useState<string>("gpt-3.5-turbo");
+  const [llm2, setLlm2] = useState<string>("claude-3-haiku-20240307");
+  const [results, setResults] = useState<{
+    llm1?: BenchmarkResult;
+    llm2?: BenchmarkResult;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFetchingPrompt, setIsFetchingPrompt] = useState<boolean>(false);
+  const [fullResponseContent, setFullResponseContent] = useState<string>("");
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchPrompts = async () => {
+      try {
+        const response = await fetch('/api/prompts');
+        if (!response.ok) {
+          throw new Error('Failed to fetch prompts');
+        }
+        const data = await response.json();
+        setPromptsList(data);
+        if (data.length > 0 && !selectedPromptFile) {
+          setSelectedPromptFile(data[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching prompts:", error);
+      }
+    };
+    fetchPrompts();
+  }, [selectedPromptFile]);
+
+  useEffect(() => {
+    if (selectedPromptFile) {
+      const fetchPromptContent = async () => {
+        setIsFetchingPrompt(true);
+        setPromptContent(""); // Clear previous content
+        try {
+          const response = await fetch(`/api/prompt/${selectedPromptFile}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch prompt content for ${selectedPromptFile}`);
+          }
+          const data = await response.json();
+          setPromptContent(data.content);
+        } catch (error) {
+          console.error("Error fetching prompt content:", error);
+          setPromptContent("Error loading prompt content.");
+        } finally {
+          setIsFetchingPrompt(false);
+        }
+      };
+      fetchPromptContent();
+    }
+  }, [selectedPromptFile]);
+
+  const handleRunBenchmark = async () => {
+    if (!promptContent || !llm1 || !llm2) {
+      console.error("Prompt content or LLM models are not selected.");
+      // Optionally: set an error message in the UI
+      return;
+    }
+    console.log("Running benchmark with:", { promptContent, llm1, llm2 });
+    setIsLoading(true);
+    setResults(null);
+
+    try {
+      const response = await fetch('/api/benchmark', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          promptContent,
+          llm1,
+          llm2,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Benchmark API error response:", errorData);
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setResults(data);
+    } catch (error: any) {
+      console.error("Error running benchmark:", error);
+      setResults({
+        llm1: { model: llm1, error: error.message || "Failed to get response" },
+        llm2: { model: llm2, error: error.message || "Failed to get response" },
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openResponseDialog = (content?: string) => {
+    if (content) {
+      setFullResponseContent(content);
+      setIsDialogOpen(true);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="container mx-auto p-4 sm:p-6 md:p-8 font-[family-name:var(--font-geist-sans)] min-h-screen flex flex-col">
+      <header className="mb-8 mt-4">
+        <h1 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+          LLM Benchmark Console
+        </h1>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Select
+                value={selectedPromptFile}
+                onValueChange={setSelectedPromptFile}
+                disabled={promptsList.length === 0 || isLoading || isFetchingPrompt}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a prompt" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Prompts</SelectLabel>
+                    {promptsList.length > 0 ? (
+                      promptsList.map((prompt) => (
+                        <SelectItem key={prompt} value={prompt}>
+                          {prompt}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-prompts" disabled>
+                        {isFetchingPrompt ? "Loading prompts..." : "No prompts found"}
+                      </SelectItem>
+                    )}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Input
+                placeholder="Enter LLM 1 (e.g., gpt-4o)"
+                value={llm1}
+                onChange={(e) => setLlm1(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <Input
+                placeholder="Enter LLM 2 (e.g., claude-3-opus-20240229)"
+                value={llm2}
+                onChange={(e) => setLlm2(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <Button
+              onClick={handleRunBenchmark}
+              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
+            >
+              {isLoading ? "Running Benchmark..." : "Run Benchmark"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="md:col-span-2">
+          <Card className="h-full min-h-[240px]">
+            <CardHeader>
+              <CardTitle>Selected Prompt Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[180px] md:h-[210px] w-full rounded-md border p-4 bg-muted/20">
+                {isFetchingPrompt ? (
+                    <p className="text-muted-foreground">Loading prompt...</p>
+                ) : promptContent ? (
+                    <pre className="text-sm whitespace-pre-wrap font-mono">{promptContent}</pre>
+                ) : (
+                    <p className="text-muted-foreground">Select a prompt to see its content, or create prompts in the 'prompts' directory.</p>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </div>
+
+      {isLoading && (
+        <div className="text-center my-8">
+          <p className="text-lg font-semibold">Comparing models, please wait...</p>
+          {/* You can add a spinner here */}
+        </div>
+      )}
+
+      {results && !isLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-grow">
+          {[results.llm1, results.llm2].map((result, index) => (
+            result && (
+              <Card key={index} className="flex flex-col">
+                <CardHeader>
+                  <CardTitle>LLM {index + 1}: {result.model}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow flex flex-col">
+                  <ScrollArea className="h-[300px] w-full rounded-md border p-4 flex-grow mb-4 bg-muted/20">
+                    {result.error ? (
+                      <div className="text-red-500 whitespace-pre-wrap">
+                        <p className="font-semibold">Error:</p>
+                        {result.error}
+                      </div>
+                    ) : result.response ? (
+                      <div className="prose dark:prose-invert max-w-none text-sm">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                          {result.response}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No response received.</p>
+                    )}
+                  </ScrollArea>
+                  {result.response && (
+                    <Button onClick={() => openResponseDialog(result.response)} variant="outline" className="mt-auto">
+                      View Full Response
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[80%] md:max-w-[70%] lg:max-w-[60%] h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Full LLM Response</DialogTitle>
+            <DialogDescription>
+              Scroll to view the complete response.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow w-full rounded-md border p-4 my-4 bg-muted/20">
+            <div className="prose dark:prose-invert max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                {fullResponseContent}
+              </ReactMarkdown>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <footer className="text-center py-8 mt-auto text-muted-foreground">
+        <p>LLM Benchmark App by Cascade</p>
       </footer>
     </div>
   );
