@@ -297,7 +297,7 @@ export default function BenchmarkPage() {
       </Dialog>
 
       <footer className="text-center py-8 mt-auto text-muted-foreground">
-        <p>LLM Benchmark App by Cascade</p>
+        <p>LLM Benchmark App by p-dazzeo</p>
       </footer>
     </div>
   );
