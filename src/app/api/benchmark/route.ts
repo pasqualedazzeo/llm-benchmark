@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
-const PYTHON_BENCHMARK_URL = 'http://127.0.0.1:5371/benchmark_py'; 
+const pythonApiUrl = process.env.PYTHON_API_URL || 'http://127.0.0.1:5371'; // Fallback for local dev without Docker
 const benchmarksHistoryDir = path.join(process.cwd(), 'benchmarks_history');
 
 export async function POST(req: NextRequest) {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Forward the request to the Python benchmark service
-    const pythonServiceResponse = await fetch(PYTHON_BENCHMARK_URL, {
+    const pythonServiceResponse = await fetch(`${pythonApiUrl}/benchmark_py`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

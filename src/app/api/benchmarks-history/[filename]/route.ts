@@ -6,9 +6,9 @@ const actualBenchmarksStorageDir = path.join(process.cwd(), 'benchmarks_history'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { filename: string } }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
-  const { filename } = params;
+  const { filename } = await params;
 
   if (!filename) {
     return NextResponse.json({ error: 'Filename is required' }, { status: 400 });

@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_PYTHON_API_URL: http://localhost:5371 # For client-side access
+      PYTHON_API_URL: http://backend:5371 # For Next.js server-side access to Python service
+      # Ensure your Next.js app uses these ^
+    depends_on:
+      - backend
+    volumes:
+      - ./.env.local:/app/.env.local:ro # Next.js uses this for its own env vars
+    networks:
+      - llm_benchmark_net
+
+  backend:
+    build:
+      context: ./python-benchmark-service
+      dockerfile: Dockerfile
+    ports:
+      - "5371:5371"
+    environment:
+      # These are picked up by Docker Compose from its own .env file or shell environment
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Add other keys as needed
+    # No need to mount .env.local here; keys are passed via 'environment' from compose's .env
+    networks:
+      - llm_benchmark_net
+
+networks:
+  llm_benchmark_net:
+    driver: bridge
