@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -143,9 +144,12 @@ export default function BenchmarkPage() {
   return (
     <div className="container mx-auto p-4 sm:p-6 md:p-8 font-[family-name:var(--font-geist-sans)] min-h-screen flex flex-col">
       <header className="mb-8 mt-4">
-        <h1 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
-          LLM Benchmark Console
-        </h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+            LLM Benchmark Console
+          </h1>
+          {/* Removed the div containing old Link components */}
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

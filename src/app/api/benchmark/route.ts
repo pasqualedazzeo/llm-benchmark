@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs/promises';
+import path from 'path';
 
-const PYTHON_BENCHMARK_URL = 'http://127.0.0.1:5371/benchmark_py'; // Ensure this matches your Python service URL and port
+const PYTHON_BENCHMARK_URL = 'http://127.0.0.1:5371/benchmark_py'; 
+const benchmarksHistoryDir = path.join(process.cwd(), 'benchmarks_history');
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +43,34 @@ export async function POST(req: NextRequest) {
     }
 
     const results = await pythonServiceResponse.json();
+
+    // Save benchmark results to a file
+    try {
+      const timestamp = new Date();
+      const dateStr = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = timestamp.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+      
+      // Sanitize model names for filename (replace slashes, etc.)
+      const safeLlm1 = llm1.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeLlm2 = llm2.replace(/[^a-zA-Z0-9_-]/g, '_');
+      
+      const filename = `benchmark_${dateStr}_${timeStr}_${safeLlm1}_vs_${safeLlm2}.json`;
+      const filePath = path.join(benchmarksHistoryDir, filename);
+
+      const dataToSave = {
+        promptContent,
+        llm1,
+        llm2,
+        results,
+        timestamp: timestamp.toISOString(),
+      };
+
+      await fs.writeFile(filePath, JSON.stringify(dataToSave, null, 2));
+      console.log(`Benchmark results saved to ${filePath}`);
+    } catch (saveError: any) {
+      console.error('Failed to save benchmark results:', saveError);
+      // Do not fail the response to the client if saving fails, just log it.
+    }
 
     // The Python service now returns a structure like:
     // {
