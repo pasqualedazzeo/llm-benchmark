@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -148,7 +147,6 @@ export default function BenchmarkPage() {
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
             LLM Benchmark Console
           </h1>
-          {/* Removed the div containing old Link components */}
         </div>
       </header>
 
@@ -280,19 +278,22 @@ export default function BenchmarkPage() {
           <DialogHeader>
             <DialogTitle>Full LLM Response</DialogTitle>
             <DialogDescription>
-              Scroll to view the complete response.
+              The complete response from the language model.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-grow w-full rounded-md border p-4 my-4 bg-muted/20">
-            <div className="prose dark:prose-invert max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+          <ScrollArea className="flex-grow rounded-md border overflow-y-auto">
+            <div className="prose dark:prose-invert max-w-none p-4">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+              >
                 {fullResponseContent}
               </ReactMarkdown>
             </div>
           </ScrollArea>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="secondary">
+              <Button type="button" variant="outline">
                 Close
               </Button>
             </DialogClose>
