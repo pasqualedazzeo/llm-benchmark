@@ -121,14 +121,14 @@ export default function BenchmarkHistoryPage() {
 
       {selectedBenchmark && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Benchmark Details: {selectedBenchmarkFilename}</DialogTitle>
               <DialogDescription>
                 Ran on: {new Date(selectedBenchmark.timestamp).toLocaleString()}
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[70vh] p-1 border rounded-md dark:border-slate-700">
+            <ScrollArea className="flex-grow p-1 border rounded-md dark:border-slate-700 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-1 gap-6 py-4 px-2">
                     <Card className="dark:bg-slate-850">
                         <CardHeader><CardTitle>Prompt</CardTitle></CardHeader>
