@@ -242,10 +242,11 @@ export default function BenchmarkPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Configuration</CardTitle>
+            <CardTitle>Benchmark Configuration</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <label className="text-md font-medium">Prompt</label>
               <Select
                 value={selectedPromptFile}
                 onValueChange={setSelectedPromptFile}

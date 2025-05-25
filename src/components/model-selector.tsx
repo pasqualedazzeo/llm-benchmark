@@ -59,8 +59,8 @@ export function ModelSelector({ llm1, setLlm1, llm2, setLlm2, disabled }: ModelS
   return (
     <div className="space-y-4">
       <div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="llm1-select">LLM 1</Label>
+        <div className="flex items-center mb-2">
+          <Label htmlFor="llm1-select" className="mr-2">LLM 1</Label>
           {!llm1KeyStatus && (
             <div className="flex items-center text-amber-500 text-xs">
               <AlertCircle className="h-3 w-3 mr-1" />
@@ -95,8 +95,8 @@ export function ModelSelector({ llm1, setLlm1, llm2, setLlm2, disabled }: ModelS
         </Select>
       </div>
       <div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="llm2-select">LLM 2</Label>
+        <div className="flex items-center mb-2">
+          <Label htmlFor="llm2-select" className="mr-2">LLM 2</Label>
           {!llm2KeyStatus && (
             <div className="flex items-center text-amber-500 text-xs">
               <AlertCircle className="h-3 w-3 mr-1" />
