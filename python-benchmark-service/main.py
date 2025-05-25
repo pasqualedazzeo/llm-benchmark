@@ -15,16 +15,6 @@ if not os.getenv("OPENAI_API_KEY"):
 
 app = Flask(__name__)
 
-def resolve_model_name_python(model_input: str) -> str:
-    """
-    Ensures model names are correctly prefixed for LiteLLM Python,
-    especially for potentially custom or newer OpenAI model names.
-    """
-    if not model_input:
-        return ""
-    if "/" in model_input or model_input.startswith("ft:"):
-        return model_input  # Already has a provider or is a fine-tuned model
-    return model_input
 
 @app.route('/benchmark_py', methods=['POST'])
 def benchmark_py():
@@ -34,14 +24,15 @@ def benchmark_py():
             return jsonify({"error": "Invalid JSON"}), 400
 
         prompt_content = data.get('promptContent')
-        llm1_input = data.get('llm1')
-        llm2_input = data.get('llm2')
+        llm1 = data.get('llm1')
+        llm2 = data.get('llm2')
+        api_key_llm1 = data.get('apiKeyLlm1')
+        api_key_llm2 = data.get('apiKeyLlm2')
 
-        if not all([prompt_content, llm1_input, llm2_input]):
+        if not all([prompt_content, llm1, llm2]):
             return jsonify({"error": "Missing promptContent, llm1, or llm2"}), 400
 
-        llm1 = resolve_model_name_python(llm1_input)
-        llm2 = resolve_model_name_python(llm2_input)
+        
 
         messages = [{"role": "user", "content": str(prompt_content)}]
         
@@ -51,7 +42,12 @@ def benchmark_py():
         # --- Call LLM 1 ---
         try:
             print(f"Calling LLM 1 ({llm1}) via Python LiteLLM...")
-            response_llm1 = completion(model=llm1, messages=messages)
+            # Use API key if provided
+            api_key_param = {}
+            if api_key_llm1:
+                api_key_param = {"api_key": api_key_llm1}
+            
+            response_llm1 = completion(model=llm1, messages=messages, **api_key_param)
             if response_llm1.choices and response_llm1.choices[0].message and response_llm1.choices[0].message.content:
                 response1_content = response_llm1.choices[0].message.content
             else:
@@ -65,7 +61,12 @@ def benchmark_py():
         # --- Call LLM 2 ---
         try:
             print(f"Calling LLM 2 ({llm2}) via Python LiteLLM...")
-            response_llm2 = completion(model=llm2, messages=messages)
+            # Use API key if provided
+            api_key_param = {}
+            if api_key_llm2:
+                api_key_param = {"api_key": api_key_llm2}
+                
+            response_llm2 = completion(model=llm2, messages=messages, **api_key_param)
             if response_llm2.choices and response_llm2.choices[0].message and response_llm2.choices[0].message.content:
                 response2_content = response_llm2.choices[0].message.content
             else:

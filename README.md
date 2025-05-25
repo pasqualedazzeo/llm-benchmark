@@ -13,6 +13,7 @@ The LLM Benchmark App provides an easy way for users to compare responses from d
 -   [Prerequisites](#prerequisites)
 -   [Running the Application (Docker - Recommended)](#running-the-application-docker---recommended)
 -   [How to Use](#how-to-use)
+-   [API Keys and Model Support](#api-keys-and-model-support)
 -   [Troubleshooting](#troubleshooting)
 -   [Manual Local Development of Services](#manual-local-development-of-services)
 
@@ -23,7 +24,8 @@ LLM Benchmark App is a web application built with Next.js (App Router), TypeScri
 ## Features
 
 -   Select prompts from a predefined list (loaded from the `/prompts` directory).
--   Input two LLM model names for benchmarking.
+-   Choose models from different providers (OpenAI, Anthropic, Google) via dropdown.
+-   Set and manage API keys for different LLM providers via the Settings dialog.
 -   View responses from both LLMs side-by-side.
 -   View full, formatted markdown responses in a dialog.
 -   Dark theme UI using shadcn/ui components.
@@ -98,16 +100,40 @@ To stop the application, press `Ctrl+C` in the terminal where `docker-compose` i
 ## How to Use
 
 1.  Select a prompt from the dropdown menu.
-2.  Enter the model names for "LLM 1" and "LLM 2" (e.g., `o3-mini`, `gpt-4o-mini`, `claude-3-haiku-20240307`).
-    -   For OpenAI models like `o3-mini` or `gpt-4o-mini`, the backend will automatically prefix them with `openai/` if needed.
-    -   For models from other providers supported by LiteLLM, use their full identifiers (e.g., `ollama/llama2`, `anthropic/claude-2`).
-3.  Click "Run Benchmark".
-4.  View the summarized responses.
-5.  Click "View Full Response" to see the complete markdown output from each LLM in a dialog.
+2.  Select models for "LLM 1" and "LLM 2" from the dropdown list. The models are listed with their fully qualified names (e.g., `openai/o4-mini`, `anthropic/claude-4-sonnet`).
+3.  Ensure you've added the corresponding API keys for all selected models in the Settings panel or in your environment variables.
+4.  The interface will indicate whether required API keys are configured.
+5.  Click "Run Benchmark" (button is disabled if required API keys are missing).
+6.  View the summarized responses.
+7.  Click "View Full Response" to see the complete markdown output from each LLM in a dialog.
+
+## API Keys and Model Support
+
+The application supports multiple LLM providers:
+
+1. **OpenAI Models:** 
+   - Can be set in the `.env` file (environment variable: `OPENAI_API_KEY`)
+   - Examples: `openai/o4-mini`, `openai/gpt-4.1-nano`
+
+2. **Anthropic Models:** 
+   - Can be set in the `.env` file (environment variable: `ANTHROPIC_API_KEY`)
+   - Can be set in the UI via Settings
+   - Examples: `anthropic/claude-4-sonnet`
+
+3. **Google (Gemini) Models:** 
+   - Can be set in the `.env` file (environment variable: `GEMINI_API_KEY`)
+   - Can be set in the UI via Settings
+   - Examples: `gemini/gemini-2.5-flash`
+
+The application automatically:
+- Uses fully qualified model names with provider prefixes (e.g., `openai/`, `anthropic/`, `gemini/`)
+- Validates if the necessary API keys are available for ALL models before allowing benchmark execution
+- Shows visual indicators of API key status in the model selector
 
 ## Troubleshooting
 
 -   **API Key Errors:** Ensure your API keys in `.env` are correct and have access to the models you are trying to use. Check the terminal output of the Python Flask service for error messages from LiteLLM.
+-   **Missing API Keys:** Ensure you've added the corresponding API keys in the Settings panel or environment variables for all models you wish to use. The UI will indicate which keys are missing.
 -   **Python Service Not Running:** Make sure the Flask service (`python_benchmark_service/main.py`) is running and accessible at the configured URL (default `http://127.0.0.1:5371`).
 -   **`uv` environment issues:** Ensure `uv` is installed and the virtual environment in `python_benchmark_service/.venv` is correctly set up and activated when running `main.py`.
 -   **"params should be awaited" warning in Next.js console:** This was addressed by updating how dynamic route parameters are handled in `src/app/api/prompt/[filename]/route.ts`. If it reappears, Next.js documentation for dynamic routes should be consulted.

@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModelSelector } from '@/components/model-selector';
-import { getApiKey } from '@/lib/utils'; // ADD THIS IMPORT
+import { getApiKey } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 interface BenchmarkResult {
   model: string;
@@ -40,8 +41,8 @@ export default function BenchmarkPage() {
   const [promptsList, setPromptsList] = useState<string[]>([]);
   const [selectedPromptFile, setSelectedPromptFile] = useState<string>("");
   const [promptContent, setPromptContent] = useState<string>("");
-  const [llm1, setLlm1] = useState<string>("o4-mini"); // Updated initial value
-  const [llm2, setLlm2] = useState<string>("gpt-4.1-nano"); // Updated initial value
+  const [llm1, setLlm1] = useState<string>("openai/o4-mini"); // 
+  const [llm2, setLlm2] = useState<string>("openai/gpt-4.1-nano"); // 
   const [results, setResults] = useState<{
     llm1?: BenchmarkResult;
     llm2?: BenchmarkResult;
@@ -50,20 +51,50 @@ export default function BenchmarkPage() {
   const [isFetchingPrompt, setIsFetchingPrompt] = useState<boolean>(false);
   const [fullResponseContent, setFullResponseContent] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [keysValid, setKeysValid] = useState<boolean>(true);
+  const [missingKeyMessage, setMissingKeyMessage] = useState<string>("");
 
   const getServiceForModel = (modelName: string): string | null => {
     if (!modelName) return null;
-    const lowerModelName = modelName.toLowerCase();
-    if (lowerModelName.startsWith('gpt') || lowerModelName.startsWith('o4')) {
-      return 'OPENAI';
+    
+    // Extract provider from the fully qualified model name (e.g., "openai/gpt-4")
+    const parts = modelName.split('/');
+    if (parts.length < 2) return null;
+    
+    const provider = parts[0].toUpperCase();
+    return provider;
+  };
+
+  useEffect(() => {
+    validateApiKeys();
+  }, [llm1, llm2]);
+
+  const validateApiKeys = () => {
+    const service1 = getServiceForModel(llm1);
+    const service2 = getServiceForModel(llm2);
+    
+    let missingKeys = [];
+    
+    if (service1) {
+      const key1 = getApiKey(service1);
+      if (!key1) missingKeys.push(service1);
     }
-    if (lowerModelName.startsWith('claude')) {
-      return 'ANTHROPIC';
+    
+    if (service2) {
+      const key2 = getApiKey(service2);
+      if (!key2) missingKeys.push(service2);
     }
-    if (lowerModelName.startsWith('gemini')) {
-      return 'GEMINI';
+    
+    // Remove duplicates
+    missingKeys = [...new Set(missingKeys)];
+    
+    if (missingKeys.length > 0) {
+      setKeysValid(false);
+      setMissingKeyMessage(`Missing API key(s) for: ${missingKeys.join(', ')}. Please add them in Settings.`);
+    } else {
+      setKeysValid(true);
+      setMissingKeyMessage("");
     }
-    return null;
   };
 
   useEffect(() => {
@@ -114,6 +145,12 @@ export default function BenchmarkPage() {
       // Optionally: set an error message in the UI
       return;
     }
+    
+    if (!keysValid) {
+      alert(missingKeyMessage);
+      return;
+    }
+    
     console.log("Running benchmark with:", { promptContent, llm1, llm2 });
     setIsLoading(true);
     setResults(null);
@@ -152,8 +189,8 @@ export default function BenchmarkPage() {
           promptContent,
           llm1,
           llm2,
-          apiKeyLlm1, // ADDED
-          apiKeyLlm2, // ADDED
+          apiKeyLlm1,
+          apiKeyLlm2,
         }),
       });
 
@@ -165,6 +202,23 @@ export default function BenchmarkPage() {
 
       const data = await response.json();
       setResults(data);
+
+      // Save the benchmark result to history
+      try {
+        await fetch('/api/benchmarks-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            promptContent,
+            results: data,
+            promptName: selectedPromptFile.replace('.txt', '')
+          }),
+        });
+      } catch (error) {
+        console.error("Error saving benchmark history:", error);
+      }
     } catch (error: any) {
       console.error("Error running benchmark:", error);
       setResults({
@@ -233,9 +287,12 @@ export default function BenchmarkPage() {
               setLlm2={setLlm2}
               disabled={isLoading}
             />
+            {!keysValid && (
+              <div className="text-red-500 text-sm">{missingKeyMessage}</div>
+            )}
             <Button
               onClick={handleRunBenchmark}
-              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2}
+              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2 || !keysValid}
               className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
             >
               {isLoading ? "Running Benchmark..." : "Run Benchmark"}

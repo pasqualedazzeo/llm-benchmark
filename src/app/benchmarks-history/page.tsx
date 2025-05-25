@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
 
 interface BenchmarkHistoryFile {
   name: string;
@@ -28,6 +30,8 @@ export default function BenchmarkHistoryPage() {
   const [historyFiles, setHistoryFiles] = useState<BenchmarkHistoryFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   const [selectedBenchmark, setSelectedBenchmark] = useState<BenchmarkData | null>(null);
   const [selectedBenchmarkFilename, setSelectedBenchmarkFilename] = useState<string | null>(null); // To track which item's details are being loaded
@@ -79,13 +83,45 @@ export default function BenchmarkHistoryPage() {
     }
   };
 
+  const handleClearHistory = async () => {
+    setIsClearing(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/benchmarks-history', {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || `Failed to clear history: ${response.statusText}`);
+      }
+      
+      // Refresh the list after clearing
+      setHistoryFiles([]);
+      setIsConfirmDialogOpen(false);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error clearing history:', err);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   if (isLoading) return <p className="p-4">Loading benchmark history...</p>;
 
   return (
     <div className="container mx-auto p-4 space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Benchmark History</h1>
-        {/* Removed old Link component */}
+        <Button
+          variant="destructive"
+          onClick={() => setIsConfirmDialogOpen(true)}
+          disabled={isClearing || historyFiles.length === 0}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Clear History
+        </Button>
       </div>
 
       {error && <p className="text-red-500 bg-red-100 p-3 rounded dark:bg-red-900 dark:text-red-200">Error: {error}</p>}
@@ -167,6 +203,28 @@ export default function BenchmarkHistoryPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Benchmark History</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear all benchmark history? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleClearHistory} 
+              disabled={isClearing}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isClearing ? 'Clearing...' : 'Yes, Clear All'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
