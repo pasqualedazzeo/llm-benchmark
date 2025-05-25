@@ -2,14 +2,19 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { HomeIcon, ListChecksIcon, HistoryIcon } from 'lucide-react'; // Example icons
+import { HomeIcon, ListChecksIcon, HistoryIcon, SettingsIcon } from 'lucide-react'; // Added SettingsIcon
+import { useState } from 'react'; // Added useState
+import { ConfigDialog } from '@/components/config-dialog'; // Added ConfigDialog import
 
 export function Navbar() {
+  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false); // Added state
+
   return (
-    <nav className="bg-background border-b px-4 py-2 sticky top-0 z-50">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="flex items-center space-x-2 text-lg font-semibold hover:text-primary transition-colors">
-          <HomeIcon className="h-6 w-6" />
+    <> {/* Added Fragment to wrap navbar and dialog */}
+      <nav className="bg-background border-b px-4 py-2 sticky top-0 z-50">
+        <div className="container mx-auto flex justify-between items-center">
+          <Link href="/" className="flex items-center space-x-2 text-lg font-semibold hover:text-primary transition-colors">
+            <HomeIcon className="h-6 w-6" />
           <span>LLM Benchmark</span>
         </Link>
         <div className="flex space-x-2">
@@ -27,8 +32,16 @@ export function Navbar() {
                 </span>
             </Button>
           </Link>
+            {/* Added Settings Button */}
+            <Button variant="ghost" onClick={() => setIsConfigDialogOpen(true)}>
+              <SettingsIcon className="mr-2 h-4 w-4" />
+              Settings
+            </Button>
         </div>
       </div>
     </nav>
+      {/* Added ConfigDialog instance */}
+      <ConfigDialog isOpen={isConfigDialogOpen} onClose={() => setIsConfigDialogOpen(false)} />
+    </>
   );
 }

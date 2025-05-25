@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ModelSelector } from '@/components/model-selector';
+import { getApiKey } from '@/lib/utils'; // ADD THIS IMPORT
 import {
   Dialog,
   DialogContent,
@@ -38,8 +40,8 @@ export default function BenchmarkPage() {
   const [promptsList, setPromptsList] = useState<string[]>([]);
   const [selectedPromptFile, setSelectedPromptFile] = useState<string>("");
   const [promptContent, setPromptContent] = useState<string>("");
-  const [llm1, setLlm1] = useState<string>("gpt-3.5-turbo");
-  const [llm2, setLlm2] = useState<string>("claude-3-haiku-20240307");
+  const [llm1, setLlm1] = useState<string>("o4-mini"); // Updated initial value
+  const [llm2, setLlm2] = useState<string>("gpt-4.1-nano"); // Updated initial value
   const [results, setResults] = useState<{
     llm1?: BenchmarkResult;
     llm2?: BenchmarkResult;
@@ -48,6 +50,21 @@ export default function BenchmarkPage() {
   const [isFetchingPrompt, setIsFetchingPrompt] = useState<boolean>(false);
   const [fullResponseContent, setFullResponseContent] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+
+  const getServiceForModel = (modelName: string): string | null => {
+    if (!modelName) return null;
+    const lowerModelName = modelName.toLowerCase();
+    if (lowerModelName.startsWith('gpt') || lowerModelName.startsWith('o4')) {
+      return 'OPENAI';
+    }
+    if (lowerModelName.startsWith('claude')) {
+      return 'ANTHROPIC';
+    }
+    if (lowerModelName.startsWith('gemini')) {
+      return 'GEMINI';
+    }
+    return null;
+  };
 
   useEffect(() => {
     const fetchPrompts = async () => {
@@ -101,6 +118,30 @@ export default function BenchmarkPage() {
     setIsLoading(true);
     setResults(null);
 
+    const service1 = getServiceForModel(llm1);
+    const service2 = getServiceForModel(llm2);
+
+    let apiKeyLlm1: string | null = null;
+    let apiKeyLlm2: string | null = null;
+
+    if (service1) {
+      apiKeyLlm1 = getApiKey(service1);
+      if (!apiKeyLlm1) {
+        console.warn(`API key for ${service1} (LLM1: ${llm1}) not found. Benchmark might fail.`);
+      }
+    } else {
+        console.warn(`Could not determine service for LLM1: ${llm1}. API key not fetched.`);
+    }
+
+    if (service2) {
+      apiKeyLlm2 = getApiKey(service2);
+      if (!apiKeyLlm2) {
+        console.warn(`API key for ${service2} (LLM2: ${llm2}) not found. Benchmark might fail.`);
+      }
+    } else {
+        console.warn(`Could not determine service for LLM2: ${llm2}. API key not fetched.`);
+    }
+
     try {
       const response = await fetch('/api/benchmark', {
         method: 'POST',
@@ -111,6 +152,8 @@ export default function BenchmarkPage() {
           promptContent,
           llm1,
           llm2,
+          apiKeyLlm1, // ADDED
+          apiKeyLlm2, // ADDED
         }),
       });
 
@@ -183,22 +226,13 @@ export default function BenchmarkPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Input
-                placeholder="Enter LLM 1 (e.g., gpt-4o)"
-                value={llm1}
-                onChange={(e) => setLlm1(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <Input
-                placeholder="Enter LLM 2 (e.g., claude-3-opus-20240229)"
-                value={llm2}
-                onChange={(e) => setLlm2(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
+            <ModelSelector
+              llm1={llm1}
+              setLlm1={setLlm1}
+              llm2={llm2}
+              setLlm2={setLlm2}
+              disabled={isLoading}
+            />
             <Button
               onClick={handleRunBenchmark}
               disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2}
