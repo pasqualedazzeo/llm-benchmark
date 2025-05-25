@@ -1,5 +1,21 @@
 # LLM Benchmark App
 
+## Overview
+
+The LLM Benchmark App provides an easy way for users to compare responses from different Language Learning Models (LLMs) side-by-side. This tool is useful for developers, researchers, or anyone curious about LLM capabilities and performance for specific prompts. It allows for quick evaluation of model outputs, helping users make informed decisions about which LLM best suits their needs.
+
+## Table of Contents
+
+-   [Overview](#overview)
+-   [Features](#features)
+-   [Project Structure](#project-structure)
+    -   [Architecture Overview](#architecture-overview)
+-   [Prerequisites](#prerequisites)
+-   [Running the Application (Docker - Recommended)](#running-the-application-docker---recommended)
+-   [How to Use](#how-to-use)
+-   [Troubleshooting](#troubleshooting)
+-   [Manual Local Development of Services](#manual-local-development-of-services)
+
 LLM Benchmark App is a web application built with Next.js (App Router), TypeScript, and Tailwind CSS for the frontend. It interacts with a Python Flask backend service that utilizes the LiteLLM library to benchmark various Language Learning Models (LLMs).
 
 **This application is designed to be run using Docker.**
@@ -23,7 +39,7 @@ LLM Benchmark App is a web application built with Next.js (App Router), TypeScri
         -   `/src/app/api/prompt/[filename]/route.ts`: Fetches content of a specific prompt.
         -   `/src/app/api/benchmark/route.ts`: Acts as a proxy to the Python benchmark service.
 -   `/prompts/`: Contains `.txt` files used as prompts for the LLMs.
--   `/python_benchmark_service/`: Python Flask backend service for LLM interaction.
+-   `/python_benchmark_service/`: Python Flask backend service for LLM interaction. For manual local development and testing of this service, see the `python_benchmark_service/README.md`.
     -   `main.py`: Flask application exposing the `/benchmark_py` endpoint.
     -   `pyproject.toml`: Python project configuration and dependencies managed by `uv`.
     -   `.venv/`: Python virtual environment managed by `uv` (for local manual development).
@@ -31,6 +47,22 @@ LLM Benchmark App is a web application built with Next.js (App Router), TypeScri
 -   `/python_benchmark_service/Dockerfile`: Dockerfile for the Python backend.
 -   `/docker-compose.yml`: Docker Compose file to orchestrate both services.
 -   `/.env`: Stores API keys (e.g., `OPENAI_API_KEY`). **This file is not committed to Git.** Create it from `.env.example` or manually.
+
+### Architecture Overview
+
+The application follows a client-server architecture with a proxy layer:
+
+1.  **User Interaction:** The user interacts with the Next.js frontend in their browser.
+2.  **Frontend to Next.js Backend:** When the user initiates a benchmark, the Next.js frontend (running on `http://localhost:3000`) sends a request to its own backend API route (`/api/benchmark`).
+3.  **Next.js Backend to Python Backend (Proxy):** This Next.js API route acts as a proxy. It forwards the benchmark request to the Python Flask backend service, which is typically running on `http://127.0.0.1:5371` (or `http://python-service:5371` within the Docker network).
+4.  **Python Backend to LLMs:** The Python Flask service receives the request, uses the LiteLLM library to interface with the specified Language Learning Models (e.g., OpenAI, Anthropic, local models via Ollama), and fetches their responses.
+5.  **Response Flow:** The responses from the LLMs are returned to the Python service, then back to the Next.js backend API, which in turn sends them to the Next.js frontend to be displayed to the user.
+
+This can be visualized as:
+
+`User -> Next.js Frontend (Browser) -> Next.js Backend API (/api/benchmark) -> Python Flask Backend (/benchmark_py) -> LiteLLM -> LLMs`
+
+This setup decouples the frontend from direct interaction with the LLM APIs and centralizes the core benchmarking logic in the Python service.
 
 ## Prerequisites
 
@@ -81,44 +113,9 @@ To stop the application, press `Ctrl+C` in the terminal where `docker-compose` i
 -   **"params should be awaited" warning in Next.js console:** This was addressed by updating how dynamic route parameters are handled in `src/app/api/prompt/[filename]/route.ts`. If it reappears, Next.js documentation for dynamic routes should be consulted.
 -   **Docker port conflicts:** If you see an error like `Error response from daemon: Ports are not available`, ensure that port 3000 (for frontend) or 5371 (for backend) are not already in use by other applications on your system.
 
-## Manual Local Development (Alternative)
+## Manual Local Development of Services
 
-If you prefer to run the services manually without Docker:
+For instructions on running the Next.js frontend and Python backend services manually for development, please refer to their respective README files:
 
-### Prerequisites (Manual)
-
--   Node.js (version recommended by Next.js, e.g., 18.x or later)
--   npm or yarn
--   Python (e.g., 3.12 or later, as per `pyproject.toml`)
--   `uv` (Python package manager): Install via `pip install uv` if not already installed.
-
-### Setup (Manual)
-
-1.  **Clone the repository (if applicable).**
-
-2.  **Frontend (Next.js App):**
-    Navigate to the `llm-benchmark-app` directory.
-    Install Node.js dependencies:
-    ```bash
-    npm install
-    ```
-
-3.  **Backend (Python Flask Service):**
-    Navigate to `python_benchmark_service`.
-    Initialize `uv` environment and install dependencies:
-    ```bash
-    uv sync
-    ```
-
-4.  **Environment Variables (Manual):**
-    Create a `.env.local` file in the root of the `llm-benchmark-app` directory. (Note: the Docker setup uses `.env`). Add your API keys as described in the Docker setup.
-
-### Running the Application (Manual)
-
-1.  **Start Python Backend:**
-    In `python_benchmark_service` directory, activate `uv` environment (`.\.venv\Scripts\activate` or `source .venv/bin/activate`) and run `python main.py`.
-    Service typically runs on `http://127.0.0.1:5371`.
-
-2.  **Start Next.js Frontend:**
-    In `llm-benchmark-app` root, run `npm run dev`.
-    Frontend typically at `http://localhost:3000`.
+-   **Next.js Frontend:** Detailed instructions for manual setup and execution are typically found in standard Next.js project documentation. Generally, navigate to the project root, install dependencies (`npm install`), and run the development server (`npm run dev`). Ensure any necessary environment variables (e.g., `NEXT_PUBLIC_PYTHON_API_BASE_URL`) are set, usually via a `.env.local` file in the project root.
+-   **Python Backend Service:** See `python_benchmark_service/README.md` for detailed instructions on setting up and running the Python Flask service independently.
