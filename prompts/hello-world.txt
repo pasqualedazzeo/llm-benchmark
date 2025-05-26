@@ -1,2 +1,6 @@
 This is a sample prompt.
 Just answer with "Hello World".
+{{variable_test}}
+{{variable_test1}}
+{{variable_test2}}
+{{variable_test3}}

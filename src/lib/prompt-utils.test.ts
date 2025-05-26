@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractVariablesFromString, substituteVariables } from './prompt-utils';
+import { extractVariablesFromString, substituteVariables, detectDuplicateVariables } from './prompt-utils';
 
 describe('extractVariablesFromString', () => {
   it('should return an empty array for null or empty content', () => {

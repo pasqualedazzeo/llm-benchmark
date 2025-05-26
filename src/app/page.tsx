@@ -15,13 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModelSelector } from '@/components/model-selector';
-import { ConfigPanel } from '@/components/config-panel';
+import VariablesModal from '@/components/variables-modal';
 import { getApiKey } from '@/lib/utils';
-import { extractVariablesFromString, substituteVariables } from '@/lib/prompt-utils'; // Import new utils
+import { extractVariablesFromString, substituteVariables, detectDuplicateVariables } from '@/lib/prompt-utils'; // Import new utils
 import {
   Dialog,
   DialogContent,
@@ -33,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { VariableIcon } from "lucide-react";
 
 interface BenchmarkResult {
   model: string;
@@ -48,6 +47,7 @@ export default function BenchmarkPage() {
   const [variableValues, setVariableValues] = useState<Record<string, string>>(
     {}
   );
+  const [duplicateVariables, setDuplicateVariables] = useState<string[]>([]);
 
   const handleVariableValueChange = (variableName: string, value: string) => {
     setVariableValues((prevValues) => ({
@@ -66,6 +66,7 @@ export default function BenchmarkPage() {
   const [isFetchingPrompt, setIsFetchingPrompt] = useState<boolean>(false);
   const [fullResponseContent, setFullResponseContent] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [isVariablesModalOpen, setIsVariablesModalOpen] = useState<boolean>(false);
   const [keysValid, setKeysValid] = useState<boolean>(true);
   const [missingKeyMessage, setMissingKeyMessage] = useState<string>("");
 
@@ -150,6 +151,10 @@ export default function BenchmarkPage() {
           // Use imported utility function to parse variables
           const extractedVars = extractVariablesFromString(newPromptContent);
           setPromptVariables(extractedVars);
+          
+          // Check for duplicate variables
+          const duplicateCheck = detectDuplicateVariables(newPromptContent);
+          setDuplicateVariables(duplicateCheck.duplicateVariables);
           
           // Initialize variableValues for new variables
           const initialValues: Record<string, string> = {};
@@ -311,21 +316,21 @@ export default function BenchmarkPage() {
               disabled={isLoading}
             />
 
-            {/* Replace placeholder with ConfigPanel component */}
-            {promptVariables.length > 0 && (
-              <ConfigPanel
-                variables={promptVariables}
-                variableValues={variableValues}
-                onValueChange={handleVariableValueChange}
-              />
-            )}
+
 
             {!keysValid && (
               <div className="text-red-500 text-sm">{missingKeyMessage}</div>
             )}
+            
+            {duplicateVariables.length > 0 && (
+              <div className="text-red-500 text-sm bg-red-50 p-3 rounded border border-red-200">
+                <strong>Error:</strong> Duplicate variables detected: {duplicateVariables.join(', ')}. 
+                Each variable name must be unique in the prompt.
+              </div>
+            )}
             <Button
               onClick={handleRunBenchmark}
-              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2 || !keysValid || (promptVariables.length > 0 && promptVariables.some(v => !variableValues[v]))}
+              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2 || !keysValid || (promptVariables.length > 0 && promptVariables.some(v => !variableValues[v])) || duplicateVariables.length > 0}
               className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
             >
               {isLoading ? "Running Benchmark..." : "Run Benchmark"}
@@ -336,7 +341,23 @@ export default function BenchmarkPage() {
         <div className="md:col-span-2">
           <Card className="h-full min-h-[240px]">
             <CardHeader>
-              <CardTitle>Selected Prompt Preview</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Selected Prompt Preview</CardTitle>
+                {promptVariables.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsVariablesModalOpen(true)}
+                    className="flex items-center space-x-2"
+                  >
+                    <VariableIcon className="h-4 w-4" />
+                    <span>Variables ({promptVariables.length})</span>
+                    {promptVariables.some(v => !variableValues[v]) && (
+                      <span className="w-2 h-2 bg-orange-500 rounded-full" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[180px] md:h-[210px] w-full rounded-md border p-4 bg-muted/20">
@@ -424,6 +445,18 @@ export default function BenchmarkPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VariablesModal
+        isOpen={isVariablesModalOpen}
+        onClose={() => setIsVariablesModalOpen(false)}
+        variables={promptVariables}
+        variableValues={variableValues}
+        onValueChange={handleVariableValueChange}
+        onSave={() => {
+          // Optional: Add any additional logic when variables are saved
+          console.log('Variables saved:', variableValues);
+        }}
+      />
 
       <footer className="text-center py-4 mt-auto text-muted-foreground">
         <p>LLM Benchmark App by p-dazzeo</p>

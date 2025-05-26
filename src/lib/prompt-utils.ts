@@ -18,6 +18,37 @@ export const extractVariablesFromString = (content: string): string[] => {
 };
 
 /**
+ * Detects if there are duplicate variable names in a string.
+ * Variables are expected to be in the format {{variableName}}.
+ * 
+ * @param content The string to check for duplicate variables.
+ * @returns An object with hasDuplicates boolean and duplicateVariables array.
+ */
+export const detectDuplicateVariables = (content: string): { hasDuplicates: boolean; duplicateVariables: string[] } => {
+  if (!content) {
+    return { hasDuplicates: false, duplicateVariables: [] };
+  }
+  
+  const regex = /{{\s*(\w+)\s*}}/g;
+  const matches = [...content.matchAll(regex)];
+  const variableNames = matches.map((match) => match[1]);
+  
+  // Count occurrences of each variable
+  const variableCounts: Record<string, number> = {};
+  variableNames.forEach(variable => {
+    variableCounts[variable] = (variableCounts[variable] || 0) + 1;
+  });
+  
+  // Find variables that appear more than once
+  const duplicateVariables = Object.keys(variableCounts).filter(variable => variableCounts[variable] > 1);
+  
+  return {
+    hasDuplicates: duplicateVariables.length > 0,
+    duplicateVariables
+  };
+};
+
+/**
  * Substitutes variables in a template string with their corresponding values.
  *
  * @param template The template string with {{variable}} placeholders.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { detectDuplicateVariables } from '@/lib/prompt-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -55,6 +56,14 @@ export default function ManagePromptsPage() {
       alert('Filename and content cannot be empty.');
       return;
     }
+    
+    // Check for duplicate variables
+    const duplicateCheck = detectDuplicateVariables(newPromptContent);
+    if (duplicateCheck.hasDuplicates) {
+      alert(`Cannot create prompt with duplicate variables: ${duplicateCheck.duplicateVariables.join(', ')}. Each variable name must be unique.`);
+      return;
+    }
+    
     let filename = newPromptFilename.trim();
     if (!filename.endsWith('.txt') && !filename.endsWith('.md')) {
         filename += '.txt'; // Default to .txt if no extension
@@ -101,6 +110,14 @@ export default function ManagePromptsPage() {
 
   const handleUpdatePrompt = async () => {
     if (!editingPrompt) return;
+    
+    // Check for duplicate variables
+    const duplicateCheck = detectDuplicateVariables(editText);
+    if (duplicateCheck.hasDuplicates) {
+      setError(`Cannot save prompt with duplicate variables: ${duplicateCheck.duplicateVariables.join(', ')}. Each variable name must be unique.`);
+      return;
+    }
+    
     setIsUpdatingPrompt(true);
     setError(null);
     try {
