@@ -16,9 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModelSelector } from '@/components/model-selector';
+import { ConfigPanel } from '@/components/config-panel';
 import { getApiKey } from '@/lib/utils';
+import { extractVariablesFromString, substituteVariables } from '@/lib/prompt-utils'; // Import new utils
 import {
   Dialog,
   DialogContent,
@@ -41,6 +44,18 @@ export default function BenchmarkPage() {
   const [promptsList, setPromptsList] = useState<string[]>([]);
   const [selectedPromptFile, setSelectedPromptFile] = useState<string>("");
   const [promptContent, setPromptContent] = useState<string>("");
+  const [promptVariables, setPromptVariables] = useState<string[]>([]);
+  const [variableValues, setVariableValues] = useState<Record<string, string>>(
+    {}
+  );
+
+  const handleVariableValueChange = (variableName: string, value: string) => {
+    setVariableValues((prevValues) => ({
+      ...prevValues,
+      [variableName]: value,
+    }));
+  };
+
   const [llm1, setLlm1] = useState<string>("openai/o4-mini"); // 
   const [llm2, setLlm2] = useState<string>("openai/gpt-4.1-nano"); // 
   const [results, setResults] = useState<{
@@ -121,13 +136,26 @@ export default function BenchmarkPage() {
       const fetchPromptContent = async () => {
         setIsFetchingPrompt(true);
         setPromptContent(""); // Clear previous content
+        setPromptVariables([]); // Clear previous variables
+        setVariableValues({}); // Clear previous variable values
         try {
           const response = await fetch(`/api/prompt/${selectedPromptFile}`);
           if (!response.ok) {
             throw new Error(`Failed to fetch prompt content for ${selectedPromptFile}`);
           }
           const data = await response.json();
-          setPromptContent(data.content);
+          const newPromptContent = data.content;
+          setPromptContent(newPromptContent);
+
+          // Use imported utility function to parse variables
+          const extractedVars = extractVariablesFromString(newPromptContent);
+          setPromptVariables(extractedVars);
+          
+          // Initialize variableValues for new variables
+          const initialValues: Record<string, string> = {};
+          extractedVars.forEach(v => initialValues[v] = "");
+          setVariableValues(initialValues);
+
         } catch (error) {
           console.error("Error fetching prompt content:", error);
           setPromptContent("Error loading prompt content.");
@@ -142,16 +170,18 @@ export default function BenchmarkPage() {
   const handleRunBenchmark = async () => {
     if (!promptContent || !llm1 || !llm2) {
       console.error("Prompt content or LLM models are not selected.");
-      // Optionally: set an error message in the UI
       return;
     }
-    
+
     if (!keysValid) {
       alert(missingKeyMessage);
       return;
     }
+
+    // Use imported utility function to substitute variables
+    const processedPromptContent = substituteVariables(promptContent, variableValues);
     
-    console.log("Running benchmark with:", { promptContent, llm1, llm2 });
+    console.log("Running benchmark with:", { processedPromptContent, llm1, llm2 });
     setIsLoading(true);
     setResults(null);
 
@@ -186,7 +216,7 @@ export default function BenchmarkPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          promptContent,
+          promptContent: processedPromptContent, // Use processed content
           llm1,
           llm2,
           apiKeyLlm1,
@@ -246,18 +276,18 @@ export default function BenchmarkPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-md font-medium">Prompt</label>
+              <label htmlFor="prompt-select" className="text-md font-medium">Prompt</label>
               <Select
                 value={selectedPromptFile}
                 onValueChange={setSelectedPromptFile}
                 disabled={promptsList.length === 0 || isLoading || isFetchingPrompt}
               >
-                <SelectTrigger>
+                <SelectTrigger id="prompt-select">
                   <SelectValue placeholder="Select a prompt" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectLabel>Prompts</SelectLabel>
+                    <SelectLabel>Available Prompts</SelectLabel>
                     {promptsList.length > 0 ? (
                       promptsList.map((prompt) => (
                         <SelectItem key={prompt} value={prompt}>
@@ -280,12 +310,22 @@ export default function BenchmarkPage() {
               setLlm2={setLlm2}
               disabled={isLoading}
             />
+
+            {/* Replace placeholder with ConfigPanel component */}
+            {promptVariables.length > 0 && (
+              <ConfigPanel
+                variables={promptVariables}
+                variableValues={variableValues}
+                onValueChange={handleVariableValueChange}
+              />
+            )}
+
             {!keysValid && (
               <div className="text-red-500 text-sm">{missingKeyMessage}</div>
             )}
             <Button
               onClick={handleRunBenchmark}
-              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2 || !keysValid}
+              disabled={isLoading || isFetchingPrompt || !promptContent || !llm1 || !llm2 || !keysValid || (promptVariables.length > 0 && promptVariables.some(v => !variableValues[v]))}
               className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3"
             >
               {isLoading ? "Running Benchmark..." : "Run Benchmark"}
